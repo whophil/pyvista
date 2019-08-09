@@ -1468,6 +1468,143 @@ class DataSetFilters(object):
         return output
 
 
+
+    def streamlines_2d(dataset, vectors=None, start_position=None,
+                    integrator_type=2, initial_step_length=0.5, step_unit='cl',
+                    max_steps=2000, terminal_speed=1e-12,
+                    max_closed_loop=1e-06, min_n_loops=4,
+                    compute_vorticity=True, sep_distance=1.0, sep_ratio=0.5,
+                    interpolator_type='point'):
+        """Integrate a vector field to generate evenly spaced streamline in 2D.
+
+        The integration is performed using a specified integrator, by default
+        Runge-Kutta2. This supports integration through any type of 2D dataset.
+
+        This produces polylines as the output, with each cell
+        (i.e., polyline) representing a streamline. The attribute values
+        associated with each streamline are stored in the cell data, whereas
+        those associated with streamline-points are stored in the point data.
+
+        This integrates streamlines both forward and backward.
+
+        The starting point, or the so-called 'seed', of the first streamline
+        is set by setting ``start_position`` keyword argument which defualts to
+        the center of the dataset.
+
+        Parameters
+        ----------
+        vectors : str
+            The string name of the active vector field to integrate across
+
+        start_position : tuple(float)
+            Set the start position. Default is is the center of the input
+            dataset
+
+        integrator_type : int
+            The integrator type to be used for streamline generation.
+            The default is Runge-Kutta45. The recognized solvers are:
+            RUNGE_KUTTA2 (``2``),  RUNGE_KUTTA4 (``4``), and RUNGE_KUTTA45
+            (``45``). Options are ``2``, ``4``, or ``45``. Default is ``45``.
+
+        initial_step_length : float
+            Initial step size used for line integration, expressed ib length
+            unitsL or cell length units (see ``step_unit`` parameter).
+            either the starting size for an adaptive integrator, e.g., RK45, or
+            the constant / fixed size for non-adaptive ones, i.e., RK2 and RK4)
+
+        step_unit : str
+            Uniform integration step unit. The valid unit is now limited to
+            only LENGTH_UNIT (``'l'``) and CELL_LENGTH_UNIT (``'cl'``).
+            Default is CELL_LENGTH_UNIT: ``'cl'``.
+
+        max_steps : int
+            Maximum number of steps for integrating a streamline.
+            Defaults to ``2000``
+
+        terminal_speed : float
+            Terminal speed value, below which integration is terminated.
+
+        max_closed_loop : float
+            Loops are considered closed if the have two points at distance
+            less than this.
+
+        min_n_loops : int
+            We don't try to eliminate loops with fewer points than this.
+            Default value is 4.
+
+        compute_vorticity : bool
+            Vorticity computation at streamline points (necessary for generating
+            proper stream-ribbons using the ``vtkRibbonFilter``.
+
+        sep_distance : float
+            The separation distance between streamlines expressed in
+            ``step_unit``.
+
+        sep_ratio : float
+            Streamline integration is stopped if streamlines are closer than
+            ``sep_distance*sep_ratio`` to other streamlines.
+
+        interpolator_type : str
+            Set the type of the velocity field interpolator to locate cells
+            during streamline integration either by points or cells.
+            The cell locator is more robust then the point locator. Options
+            are ``'point'`` or ``'cell'`` (abreviations of ``'p'`` and ``'c'``
+            are also supported).
+
+        """
+        if integrator_type not in [2, 4]:
+            raise RuntimeError('integrator type must be one of `2` or `4`.')
+        if interpolator_type not in ['c', 'cell', 'p', 'point']:
+            raise RuntimeError("interpolator type must be either 'cell' or 'point'")
+        if step_unit not in ['l', 'cl']:
+            raise RuntimeError("step unit must be either 'l' or 'cl'")
+        step_unit = {'cl':vtk.vtkStreamTracer.CELL_LENGTH_UNIT,
+                     'l':vtk.vtkStreamTracer.LENGTH_UNIT}[step_unit]
+        if isinstance(vectors, str):
+            dataset.set_active_scalar(vectors)
+            dataset.set_active_vectors(vectors)
+
+        if start_position is None:
+            start_position = dataset.center
+
+        if len(start_position) != 3:
+            raise TypeError("`start_position` but be an XYZ coordinate location")
+
+        # Build the algorithm
+        alg = vtk.vtkEvenlySpacedStreamlines2D()
+        # Inputs
+        alg.SetInputDataObject(dataset)
+
+        # general parameters
+        alg.SetClosedLoopMaximumDistance(max_closed_loop)
+        alg.SetComputeVorticity(compute_vorticity)
+        alg.SetInitialIntegrationStep(initial_step_length)
+        alg.SetIntegrationStepUnit(step_unit)
+        alg.SetMaximumNumberOfSteps(max_steps)
+        alg.SetMinimumNumberOfLoopPoints(min_n_loops)
+        alg.SetSeparatingDistance(sep_distance)
+        alg.SetSeparatingDistanceRatio(sep_ratio)
+        alg.SetStartPosition(start_position)
+        alg.SetTerminalSpeed(terminal_speed)
+
+        # set integrator type
+        if integrator_type == 4:
+            alg.SetIntegratorTypeToRungeKutta4()
+        else:
+            alg.SetIntegratorTypeToRungeKutta2()
+        # set interpolator type
+        if interpolator_type in ['c', 'cell']:
+            alg.SetInterpolatorTypeToCellLocator()
+        else:
+            alg.SetInterpolatorTypeToDataSetPointLocator()
+
+        # run the algorithm
+        alg.Update()
+        output = _get_output(alg)
+        del alg
+        return output
+
+
     def decimate_boundary(dataset, target_reduction=0.5):
         """Return a decimated version of a triangulation of the boundary of
         this mesh's outer surface

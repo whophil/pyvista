@@ -1504,11 +1504,11 @@ class DataSetFilters(object):
 
 
     def streamlines_2d(dataset, vectors=None, start_position=None,
-                    integrator_type=2, initial_step_length=0.5, step_unit='cl',
-                    max_steps=2000, terminal_speed=1e-12,
-                    max_closed_loop=1e-06, min_n_loops=4,
-                    compute_vorticity=True, sep_distance=1.0, sep_ratio=0.5,
-                    interpolator_type='point'):
+                       integrator_type=2, initial_step_length=0.5, step_unit='cl',
+                       max_steps=2000, terminal_speed=1e-12,
+                       max_closed_loop=1e-06, min_n_loops=4,
+                       compute_vorticity=True, sep_distance=1.0, sep_ratio=0.5,
+                       interpolator_type='point'):
         """Integrate a vector field to generate evenly spaced streamline in 2D.
 
         The integration is performed using a specified integrator, by default

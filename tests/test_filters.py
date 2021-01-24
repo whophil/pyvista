@@ -977,25 +977,25 @@ def test_concatenate_structured():
     voi_2 = structured.extract_subset([0, 80, 40, 80, 0, 1], boundary=True)
 
     # then recombine
-    joined = voi_1.concatenate(voi_2)
+    joined = voi_1.concatenate(voi_2, axis=1)
     assert structured.points == pytest.approx(joined.points)
     assert structured.volume == pytest.approx(joined.volume)
 
+    # test bad concatenation
+    with pytest.raises(RuntimeError):
+        joined = voi_1.concatenate(voi_2, axis=0)
 
-def test_structured_add():
-    structured = examples.load_structured()
+    with pytest.raises(RuntimeError):
+        joined = voi_1.concatenate(voi_2, axis=2)
 
-    # split the grid into two
+    with pytest.raises(RuntimeError):
+        joined = voi_1.concatenate(voi_2, axis=3)
+
+    # test disconnected
     voi_1 = structured.extract_subset([0, 80, 0, 40, 0, 1], boundary=True)
-    voi_2 = structured.extract_subset([0, 80, 40, 80, 0, 1], boundary=True)
-
-    # then recombine
-    joined = voi_1 + voi_2
-
-    # ensure type remains structured
-    assert isinstance(joined, type(voi_1))
-    assert structured.points == pytest.approx(joined.points)
-    assert structured.volume == pytest.approx(joined.volume)
+    voi_2 = structured.extract_subset([0, 80, 50, 80, 0, 1], boundary=True)
+    with pytest.raises(RuntimeError):
+        joined = voi_1.concatenate(voi_2, axis=1)
 
 
 def test_structured_add_non_grid():
